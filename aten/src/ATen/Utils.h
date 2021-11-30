@@ -135,7 +135,7 @@ Tensor empty_generic(
   ScalarType dtype,
   Device device,
   c10::optional<c10::MemoryFormat> memory_format,
-  bool weightEmpty
+  bool weightEmpty=false
 );
 
 

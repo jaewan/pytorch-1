@@ -32,7 +32,7 @@ Tensor empty_cpu(
     c10::optional<Device> device_opt,
     c10::optional<bool> pin_memory_opt,
     c10::optional<c10::MemoryFormat> memory_format_opt,
-    bool weightEmpty) {
+    bool weightEmpty=false) {
 
   auto device = device_or_default(device_opt);
   TORCH_INTERNAL_ASSERT_DEBUG_ONLY(device.type() == DeviceType::CPU);
@@ -61,7 +61,7 @@ Tensor empty_generic(
   ScalarType scalar_type,
   Device device,
   c10::optional<c10::MemoryFormat> memory_format_opt,
-  bool weightEmpty) {
+  bool weightEmpty=false) {
 
   check_size_nonnegative(size);
 
