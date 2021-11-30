@@ -82,7 +82,7 @@ class Linear(Module):
         super(Linear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
-        asdfself.weight = Parameter(torch.empty((out_features, in_features), **factory_kwargs, weightEmpty=True))
+        self.weight = Parameter(torch.empty((out_features, in_features), **factory_kwargs, weightEmpty=True))
         if bias:
             self.bias = Parameter(torch.empty(out_features, **factory_kwargs, weightEmpty=True))
         else:
