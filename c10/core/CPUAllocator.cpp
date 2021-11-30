@@ -101,7 +101,7 @@ void free_cpu(void* data) {
 
 struct C10_API DefaultCPUAllocator final : at::Allocator {
   DefaultCPUAllocator() = default;
-  at::DataPtr allocate(size_t nbytes) const override {
+  at::DataPtr allocate(size_t nbytes, bool weightEmpty=false) const override {
     void* data = alloc_cpu(nbytes);
     profiledCPUMemoryReporter().New(data, nbytes);
     return {data, data, &ReportAndDelete, at::Device(at::DeviceType::CPU)};
