@@ -122,12 +122,11 @@ inline void check_size_nonnegative(IntArrayRef size) {
 namespace detail {
 TORCH_API
 Tensor empty_cpu(IntArrayRef size, c10::optional<ScalarType> dtype_opt, c10::optional<Layout> layout_opt,
-                 c10::optional<Device> device_opt, c10::optional<bool> pin_memory_opt, c10::optional<c10::MemoryFormat> memory_format_opt);
+                 c10::optional<Device> device_opt, c10::optional<bool> pin_memory_opt, c10::optional<c10::MemoryFormat> memory_format_opt, bool hook_alloc=false);
 
 TORCH_API
 Tensor empty_generic(
   IntArrayRef size,
-  bool hook_alloc,
   c10::Allocator* allocator,
   // technically this can be inferred from the device, but usually the
   // correct setting is obvious from the call site so just make callers
@@ -135,7 +134,8 @@ Tensor empty_generic(
   c10::DispatchKey dispatch_key,
   ScalarType dtype,
   Device device,
-  c10::optional<c10::MemoryFormat> memory_format
+  c10::optional<c10::MemoryFormat> memory_format,
+  bool hook_alloc=false
 );
 
 

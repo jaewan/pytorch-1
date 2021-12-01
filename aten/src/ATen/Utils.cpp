@@ -27,12 +27,12 @@ namespace detail {
 // access native symbols through dispatching, we move its implementation here.
 Tensor empty_cpu(
     IntArrayRef size,
-    bool hook_alloc,
     c10::optional<ScalarType> dtype_opt,
     c10::optional<Layout> layout_opt,
     c10::optional<Device> device_opt,
     c10::optional<bool> pin_memory_opt,
-    c10::optional<c10::MemoryFormat> memory_format_opt) {
+    c10::optional<c10::MemoryFormat> memory_format_opt,
+    bool hook_alloc) {
 
   auto device = device_or_default(device_opt);
   TORCH_INTERNAL_ASSERT_DEBUG_ONLY(device.type() == DeviceType::CPU);
@@ -48,12 +48,11 @@ Tensor empty_cpu(
   }
   auto dtype = dtype_or_default(dtype_opt);
 
-  return empty_generic(size, hook_alloc, allocator, at::DispatchKey::CPU, dtype, device, memory_format_opt);
+  return empty_generic(size, allocator, at::DispatchKey::CPU, dtype, device, memory_format_opt, hook_alloc);
 }
 
 Tensor empty_generic(
   IntArrayRef size,
-  bool hook_alloc,
   c10::Allocator* allocator,
   // technically this can be inferred from the device, but usually the
   // correct setting is obvious from the call site so just make callers
@@ -61,7 +60,8 @@ Tensor empty_generic(
   c10::DispatchKey dispatch_key,
   ScalarType scalar_type,
   Device device,
-  c10::optional<c10::MemoryFormat> memory_format_opt) {
+  c10::optional<c10::MemoryFormat> memory_format_opt,
+  bool hook_alloc) {
 
   check_size_nonnegative(size);
 

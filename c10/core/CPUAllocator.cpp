@@ -3,6 +3,10 @@
 #include <c10/mobile/CPUCachingAllocator.h>
 #include <c10/mobile/CPUProfilingAllocator.h>
 
+#include <fstream>
+#include <iostream>
+#include <sys/time.h>
+
 // TODO: rename flags to C10
 C10_DEFINE_bool(
     caffe2_report_cpu_memory_usage,
@@ -94,6 +98,15 @@ void* alloc_cpu(size_t nbytes, bool hook_alloc) {
   if (nbytes == 0) {
     return nullptr;
   }
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time <<" hook_alloc:"<< hook_alloc<< " "<<  __func__ << std::endl;
+	log_pytorch.close();
   // We might have clowny upstream code that tries to alloc a negative number
   // of bytes. Let's catch it early.
   CAFFE_ENFORCE(
@@ -158,7 +171,7 @@ void free_cpu(void* data) {
 
 struct C10_API DefaultCPUAllocator final : at::Allocator {
   DefaultCPUAllocator() = default;
-  at::DataPtr allocate(size_t nbytes) const override{
+  at::DataPtr allocate(size_t nbytes, bool hook_alloc) const override{
     void* data = alloc_cpu(nbytes, hook_alloc);
     profiledCPUMemoryReporter().New(data, nbytes);
     return {data, data, &ReportAndDelete, at::Device(at::DeviceType::CPU)};
@@ -235,7 +248,7 @@ class DefaultMobileCPUAllocator final : public at::Allocator {
     }
   }
 
-  DataPtr allocate(const size_t nbytes) const override {
+  DataPtr allocate(const size_t nbytes, bool hook_alloc) const override {
     if (C10_UNLIKELY(0u == nbytes)) {
       return {
           nullptr,
