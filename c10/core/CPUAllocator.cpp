@@ -90,6 +90,63 @@ void* alloc_cpu(size_t nbytes) {
   return data;
 }
 
+void* alloc_cpu(size_t nbytes, bool hook_alloc) {
+  if (nbytes == 0) {
+    return nullptr;
+  }
+  // We might have clowny upstream code that tries to alloc a negative number
+  // of bytes. Let's catch it early.
+  CAFFE_ENFORCE(
+      ((ptrdiff_t)nbytes) >= 0,
+      "alloc_cpu() seems to have been called with negative number: ",
+      nbytes);
+
+  // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+  void* data;
+#ifdef __ANDROID__
+  data = memalign(gAlignment, nbytes);
+#elif defined(_MSC_VER)
+  data = _aligned_malloc(nbytes, gAlignment);
+#else
+  int err;
+  if(hook_alloc){
+    //TODO(Jae) make a custom alloc function here
+    err = posix_memalign(&data, gAlignment, nbytes);
+  }else{
+    err = posix_memalign(&data, gAlignment, nbytes);
+  }
+  if (err != 0) {
+    CAFFE_THROW(
+        "DefaultCPUAllocator: can't allocate memory: you tried to allocate ",
+        nbytes,
+        " bytes. Error code ",
+        err,
+        " (",
+        strerror(err),
+        ")");
+  }
+#endif
+
+  CAFFE_ENFORCE(
+      data,
+      "DefaultCPUAllocator: not enough memory: you tried to allocate ",
+      nbytes,
+      " bytes.");
+
+  // move data to a thread's NUMA node
+  NUMAMove(data, nbytes, GetCurrentNUMANode());
+  CHECK(
+      !FLAGS_caffe2_cpu_allocator_do_zero_fill ||
+      !FLAGS_caffe2_cpu_allocator_do_junk_fill)
+      << "Cannot request both zero-fill and junk-fill at the same time";
+  if (FLAGS_caffe2_cpu_allocator_do_zero_fill) {
+    memset(data, 0, nbytes);
+  } else if (FLAGS_caffe2_cpu_allocator_do_junk_fill) {
+    memset_junk(data, nbytes);
+  }
+
+  return data;
+}
 void free_cpu(void* data) {
 #ifdef _MSC_VER
   _aligned_free(data);
@@ -101,8 +158,8 @@ void free_cpu(void* data) {
 
 struct C10_API DefaultCPUAllocator final : at::Allocator {
   DefaultCPUAllocator() = default;
-  at::DataPtr allocate(size_t nbytes) const override {
-    void* data = alloc_cpu(nbytes);
+  at::DataPtr allocate(size_t nbytes) const override{
+    void* data = alloc_cpu(nbytes, hook_alloc);
     profiledCPUMemoryReporter().New(data, nbytes);
     return {data, data, &ReportAndDelete, at::Device(at::DeviceType::CPU)};
   }

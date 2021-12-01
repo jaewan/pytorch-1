@@ -127,6 +127,7 @@ Tensor empty_cpu(IntArrayRef size, c10::optional<ScalarType> dtype_opt, c10::opt
 TORCH_API
 Tensor empty_generic(
   IntArrayRef size,
+  bool hook_alloc,
   c10::Allocator* allocator,
   // technically this can be inferred from the device, but usually the
   // correct setting is obvious from the call site so just make callers

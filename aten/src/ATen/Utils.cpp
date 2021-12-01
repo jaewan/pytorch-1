@@ -27,6 +27,7 @@ namespace detail {
 // access native symbols through dispatching, we move its implementation here.
 Tensor empty_cpu(
     IntArrayRef size,
+    bool hook_alloc,
     c10::optional<ScalarType> dtype_opt,
     c10::optional<Layout> layout_opt,
     c10::optional<Device> device_opt,
@@ -47,11 +48,12 @@ Tensor empty_cpu(
   }
   auto dtype = dtype_or_default(dtype_opt);
 
-  return empty_generic(size, allocator, at::DispatchKey::CPU, dtype, device, memory_format_opt);
+  return empty_generic(size, hook_alloc, allocator, at::DispatchKey::CPU, dtype, device, memory_format_opt);
 }
 
 Tensor empty_generic(
   IntArrayRef size,
+  bool hook_alloc,
   c10::Allocator* allocator,
   // technically this can be inferred from the device, but usually the
   // correct setting is obvious from the call site so just make callers
@@ -69,7 +71,7 @@ Tensor empty_generic(
   auto storage_impl = c10::make_intrusive<StorageImpl>(
       c10::StorageImpl::use_byte_size_t(),
       size_bytes,
-      allocator->allocate(size_bytes),
+      allocator->allocate(size_bytes, hook_alloc),
       allocator,
       /*resizeable=*/true);
 

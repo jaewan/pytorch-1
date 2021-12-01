@@ -152,6 +152,7 @@ struct C10_API Allocator {
   virtual ~Allocator() = default;
 
   virtual DataPtr allocate(size_t n) const = 0;
+  //virtual DataPtr allocate(size_t n, bool hook_alloc=false) const;
 
   // If this returns a non nullptr, it means that allocate()
   // is guaranteed to return a unique_ptr with this deleter attached;
