@@ -1,1 +1,6 @@
-PYTHON_JIT=0 python a.py
+PYTHON_JIT=0 python multi_resnet.py -t 1
+PYTHON_JIT=0 python multi_resnet.py -t 2
+PYTHON_JIT=0 python multi_resnet.py -t 4
+PYTHON_JIT=0 python multi_resnet.py -t 8
+PYTHON_JIT=0 python multi_resnet.py -t 16
+PYTHON_JIT=0 python multi_resnet.py -t 32
