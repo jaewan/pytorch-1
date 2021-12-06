@@ -126,10 +126,10 @@ class _ConvNd(Module):
 
         if transposed:
             self.weight = Parameter(torch.empty(
-                (in_channels, out_channels // groups, *kernel_size), **factory_kwargs))
+                (in_channels, out_channels // groups, *kernel_size), True, **factory_kwargs))
         else:
             self.weight = Parameter(torch.empty(
-                (out_channels, in_channels // groups, *kernel_size), **factory_kwargs))
+                (out_channels, in_channels // groups, *kernel_size), True, **factory_kwargs))
         if bias:
             self.bias = Parameter(torch.empty(out_channels, **factory_kwargs))
         else:
