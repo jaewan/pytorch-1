@@ -35,6 +35,7 @@ C10_API void NoDelete(void*);
 C10_API void memset_junk(void* data, size_t num);
 
 C10_API void* alloc_cpu(size_t nbytes);
+C10_API void* alloc_cpu(size_t nbytes, bool hook_alloc);
 C10_API void free_cpu(void* data);
 
 // A simple struct that is used to report C10's memory allocation and
