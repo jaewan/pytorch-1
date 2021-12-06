@@ -98,6 +98,7 @@ void* alloc_cpu(size_t nbytes, bool hook_alloc) {
   if (nbytes == 0) {
     return nullptr;
   }
+	static thread_local id = 0;
 	std::string logname("/home/ubuntu/pytorchLog");
 	std::ofstream log_pytorch;
 	struct timeval time_now{};
@@ -157,6 +158,7 @@ void* alloc_cpu(size_t nbytes, bool hook_alloc) {
   } else if (FLAGS_caffe2_cpu_allocator_do_junk_fill) {
     memset_junk(data, nbytes);
   }
+  id++;
 
   return data;
 }
