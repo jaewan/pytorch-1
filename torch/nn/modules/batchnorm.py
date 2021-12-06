@@ -42,7 +42,7 @@ class _NormBase(Module):
         self.affine = affine
         self.track_running_stats = track_running_stats
         if self.affine:
-            self.weight = Parameter(torch.empty(num_features, **factory_kwargs))
+            self.weight = Parameter(torch.empty(num_features, TRUE, **factory_kwargs))
             self.bias = Parameter(torch.empty(num_features, **factory_kwargs))
         else:
             self.register_parameter("weight", None)
