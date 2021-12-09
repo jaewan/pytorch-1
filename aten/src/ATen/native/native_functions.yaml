@@ -1889,6 +1889,12 @@
   dispatch:
     CompositeExplicitAutograd: empty_like
 
+- func: empty_like.hook(Tensor self, bool hook_alloc, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None, MemoryFormat? memory_format=None) -> Tensor
+  device_check: NoCheck
+  device_guard: False
+  dispatch:
+    CompositeExplicitAutograd: empty_like
+
 - func: empty_strided(int[] size, int[] stride, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool? pin_memory=None) -> Tensor
   dispatch:
     CPU: empty_strided_cpu
@@ -2481,6 +2487,9 @@
   dispatch:
     CPU, CUDA: nan_to_num_out
 
+- func: linearhook(Tensor input, Tensor weight, Tensor? bias=None, bool hook_alloc=False) -> Tensor
+  python_module: nn
+
 - func: linear(Tensor input, Tensor weight, Tensor? bias=None) -> Tensor
   python_module: nn
 
@@ -2857,6 +2866,8 @@
 - func: max_pool1d(Tensor self, int[1] kernel_size, int[1] stride=[], int[1] padding=0, int[1] dilation=1, bool ceil_mode=False) -> Tensor
 
 - func: max_pool2d(Tensor self, int[2] kernel_size, int[2] stride=[], int[2] padding=0, int[2] dilation=1, bool ceil_mode=False) -> Tensor
+
+- func: max_pool2d_hook(Tensor self, int[2] kernel_size, int[2] stride=[], int[2] padding=0, int[2] dilation=1, bool ceil_mode=False, bool hook_alloc=False) -> Tensor
 
 - func: mkldnn_max_pool2d(Tensor self, int[2] kernel_size, int[2] stride=[], int[2] padding=0, int[2] dilation=1, bool ceil_mode=False) -> Tensor
   dispatch:
@@ -5027,6 +5038,15 @@
     SparseCPU: addmm_sparse_dense_cpu
     SparseCUDA: addmm_sparse_dense_cuda
     SparseCsrCPU, SparseCsrCUDA: addmm_sparse_csr_dense
+
+- func: addmmhook(Tensor self, Tensor mat1, Tensor mat2, *, Scalar hook_alloc=0, Scalar beta=1, Scalar alpha=1) -> Tensor
+  structured_delegate: addmmhook.out
+  variants: function, method
+
+- func: addmmhook.out(Tensor self, Tensor mat1, Tensor mat2, *, Scalar hook_alloc=0, Scalar beta=1, Scalar alpha=1, Tensor(a!) out) -> Tensor(a!)
+  structured: True
+  dispatch:
+    CPU: addmmhook_out_cpu
 
 - func: addmm_(Tensor(a!) self, Tensor mat1, Tensor mat2, *, Scalar beta=1, Scalar alpha=1) -> Tensor(a!)
   structured_delegate: addmm.out
@@ -9173,6 +9193,17 @@
     CUDA: fractional_max_pool3d_backward_cuda
 
 # Return: (Tensor output, Tensor indices)
+- func: max_pool2d_hook_with_indices.out(Tensor self, int[2] kernel_size, int[2] stride=[], int[2] padding=0, int[2] dilation=1, bool ceil_mode=False, bool hook_alloc=False, *, Tensor(a!) out, Tensor(b!) indices) -> (Tensor(a!), Tensor(b!))
+  python_module: nn
+  structured: True
+  dispatch:
+    CPU: max_pool2d_hook_with_indices_out_cpu
+
+# Return: (Tensor output, Tensor indices)
+- func: max_pool2d_hook_with_indices(Tensor self, int[2] kernel_size, int[2] stride=[], int[2] padding=0, int[2] dilation=1, bool ceil_mode=False, bool hook_alloc=False) -> (Tensor, Tensor)
+  python_module: nn
+  structured_delegate: max_pool2d_hook_with_indices.out
+
 - func: max_pool2d_with_indices.out(Tensor self, int[2] kernel_size, int[2] stride=[], int[2] padding=0, int[2] dilation=1, bool ceil_mode=False, *, Tensor(a!) out, Tensor(b!) indices) -> (Tensor(a!), Tensor(b!))
   python_module: nn
   structured: True

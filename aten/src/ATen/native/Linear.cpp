@@ -16,6 +16,52 @@
 
 namespace at { namespace native {
 
+Tensor linearhook(const Tensor& input, const Tensor& weight, const c10::optional<Tensor>& bias_opt, bool hook_alloc) {
+  // See [Note: hacky wrapper removal for optional tensor]
+  auto bias = bias_opt.has_value()
+    ? c10::MaybeOwned<Tensor>::borrowed(*bias_opt)
+    : c10::MaybeOwned<Tensor>::owned(c10::in_place);
+
+  if (input.is_mkldnn()) {
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time << "["<<  __func__ << "]: JAE_DEBUG something is wrong. It should not fall here"<< std::endl;
+	log_pytorch.flush();
+    return at::mkldnn_linear(input, weight, *bias);
+  }
+#if defined(C10_MOBILE)
+  if (xnnpack::use_linear(input, weight, *bias)) {
+    return xnnpack::linear(input, weight, *bias);
+  }
+#endif
+  if (input.dim() == 2 && bias->defined()) {
+    // Fused op is marginally faster.
+    if(hook_alloc)
+      return at::addmmhook(*bias, input, weight.t(), Scalar(1.0));
+    else
+      return at::addmmhook(*bias, input, weight.t(), Scalar(0.0));
+  }
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time << "["<<  __func__ << "]: JAE_DEBUG something is wrong. It should not fall here"<< std::endl;
+	log_pytorch.flush();
+  auto output = at::matmul(input, weight.t());
+  if (bias->defined()) {
+    output.add_(*bias);
+  }
+  return output;
+}
+
 Tensor linear(const Tensor& input, const Tensor& weight, const c10::optional<Tensor>& bias_opt) {
   // See [Note: hacky wrapper removal for optional tensor]
   auto bias = bias_opt.has_value()

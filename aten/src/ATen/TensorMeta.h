@@ -58,6 +58,7 @@ namespace impl {
 // A notable subclass of this interface is TensorIteratorBase.
 struct TORCH_API MetaBase {
   virtual void set_output(int64_t output_idx, IntArrayRef sizes, IntArrayRef strides, TensorOptions options, DimnameList names) = 0;
+  virtual void set_output(int64_t output_idx, IntArrayRef sizes, IntArrayRef strides, TensorOptions options, DimnameList names, bool alloc_hook){}
   virtual const Tensor& maybe_get_output(int64_t output_idx) = 0;
   void set_output(IntArrayRef sizes, TensorOptions options) {
     set_output(0, sizes, {}, options, {});

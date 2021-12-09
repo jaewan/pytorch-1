@@ -126,10 +126,10 @@ class _ConvNd(Module):
 
         if transposed:
             self.weight = Parameter(torch.empty(
-                (in_channels, out_channels // groups, *kernel_size), **factory_kwargs))
+                (in_channels, out_channels // groups, *kernel_size), True, **factory_kwargs))
         else:
             self.weight = Parameter(torch.empty(
-                (out_channels, in_channels // groups, *kernel_size), **factory_kwargs))
+                (out_channels, in_channels // groups, *kernel_size), True, **factory_kwargs))
         if bias:
             self.bias = Parameter(torch.empty(out_channels, **factory_kwargs))
         else:
@@ -436,10 +436,17 @@ class Conv2d(_ConvNd):
             False, _pair(0), groups, bias, padding_mode, **factory_kwargs)
 
     def _conv_forward(self, input: Tensor, weight: Tensor, bias: Optional[Tensor]):
+        log = open('/home/ubuntu/pytorchLog', 'a')
         if self.padding_mode != 'zeros':
+            log.write('F.pad from conv.py\n')
+            log.flush()
+            log.close()
             return F.conv2d(F.pad(input, self._reversed_padding_repeated_twice, mode=self.padding_mode),
                             weight, bias, self.stride,
                             _pair(0), self.dilation, self.groups)
+        log.write('input from conv.py\n')
+        log.flush()
+        log.close()
         return F.conv2d(input, weight, bias, self.stride,
                         self.padding, self.dilation, self.groups)
 

@@ -787,7 +787,7 @@ def _max_pool2d(
         )
     if stride is None:
         stride = torch.jit.annotate(List[int], [])
-    return torch.max_pool2d(input, kernel_size, stride, padding, dilation, ceil_mode)
+    return torch.max_pool2d_hook(input, kernel_size, stride, padding, dilation, ceil_mode, True)
 
 
 max_pool2d = boolean_dispatch(
@@ -1948,7 +1948,7 @@ def linear(input: Tensor, weight: Tensor, bias: Optional[Tensor] = None) -> Tens
     """
     if has_torch_function_variadic(input, weight, bias):
         return handle_torch_function(linear, (input, weight, bias), input, weight, bias=bias)
-    return torch._C._nn.linear(input, weight, bias)
+    return torch._C._nn.linearhook(input, weight, bias, True)
 
 
 def bilinear(input1: Tensor, input2: Tensor, weight: Tensor, bias: Optional[Tensor] = None) -> Tensor:

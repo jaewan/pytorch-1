@@ -53,14 +53,14 @@ if (strides.empty()) {
         core = f"""
   {empty_init}
   if (strides.empty()) {{
-      return {empty_impl}(sizes, {expanded_topts}, options.memory_format_opt());
+      return {empty_impl}(sizes, hook_alloc, {expanded_topts}, options.memory_format_opt());
   }} else {{
       // TODO: assert options.memory_format_opt() is nullopt (debug only?)
       return {empty_strided_impl}(sizes, strides, {expanded_topts});
   }}
 """
     return [f"""
-Tensor create_out(IntArrayRef sizes, IntArrayRef strides, const TensorOptions &options) {{
+Tensor create_out(IntArrayRef sizes, IntArrayRef strides, const TensorOptions &options, bool hook_alloc=false) {{
 {core}
 }}
 """]
@@ -412,6 +412,12 @@ class StructuredRegisterDispatchKey(RegisterDispatchKey):
         return f"""
 void set_output(int64_t output_idx, IntArrayRef sizes, IntArrayRef strides,
                 TensorOptions options, DimnameList names) override {{
+    std::string logname("/home/ubuntu/pytorchLog");
+    std::ofstream log_pytorch;
+    log_pytorch.open(logname, std::ios_base::app);
+    log_pytorch<< "0 set_output generated in a python file"<< std::endl;
+    log_pytorch.flush();
+    log_pytorch.close();
 {textwrap.indent(self.gen_class_set_output_body(k), "    ")}
     if (!names.empty()) {{
       namedinference::propagate_names({maybe_star}outputs_[output_idx], names);
@@ -420,7 +426,55 @@ void set_output(int64_t output_idx, IntArrayRef sizes, IntArrayRef strides,
     // to retrieve the output
 {textwrap.indent(set_output_super, "    ")}
 }}
+void set_output(int64_t output_idx, IntArrayRef sizes, IntArrayRef strides,
+                TensorOptions options, DimnameList names, bool hook_alloc) {{
+    std::string logname("/home/ubuntu/pytorchLog");
+    std::ofstream log_pytorch;
+    log_pytorch.open(logname, std::ios_base::app);
+    log_pytorch<< "1 set_output generated in a python file hook_alloc is "<< hook_alloc << std::endl;
+    log_pytorch.flush();
+    log_pytorch.close();
+{textwrap.indent(self.gen_class_set_output_hook_alloc_body(k), "    ")}
+    if (!names.empty()) {{
+      namedinference::propagate_names({maybe_star}outputs_[output_idx], names);
+    }}
+    // super must happen after, so that downstream can use maybe_get_output
+    // to retrieve the output
+{textwrap.indent(set_output_super, "    ")}
+}}
 """
+
+    def gen_class_set_output_hook_alloc_body(self, k: SchemaKind) -> str:
+        if self.backend_index.dispatch_key in [DispatchKey.CUDA, DispatchKey.CompositeExplicitAutograd]:
+            maybe_set_guard = """
+auto current_device = guard_.current_device();
+if (C10_UNLIKELY(current_device.has_value())) {
+  TORCH_INTERNAL_ASSERT(*current_device == options.device(),
+    "structured kernels don't support multi-device outputs");
+} else {
+  guard_.reset_device(options.device());
+}
+"""
+            maybe_set_guard_line = maybe_set_guard + "\n"
+        else:
+            maybe_set_guard_line = maybe_set_guard = ''
+
+        if k is SchemaKind.functional:
+            assert self.backend_index.dispatch_key in (
+                DispatchKey.Meta, DispatchKey.CPU, DispatchKey.CUDA,
+                DispatchKey.CompositeExplicitAutograd)
+            return f"""{maybe_set_guard_line}
+outputs_[output_idx] = create_out(sizes, strides, options, hook_alloc);"""
+        elif k is SchemaKind.inplace:
+            return f"""{maybe_set_guard_line}
+const auto& out = outputs_[output_idx].get();
+check_inplace(out, sizes, options);"""
+        elif k is SchemaKind.out:
+            return f"""{maybe_set_guard_line}
+const auto& out = outputs_[output_idx].get();
+resize_out(out, sizes, strides, options);"""
+        else:
+            assert_never(k)
 
     def gen_class_set_output_body(self, k: SchemaKind) -> str:
         if self.backend_index.dispatch_key in [DispatchKey.CUDA, DispatchKey.CompositeExplicitAutograd]:

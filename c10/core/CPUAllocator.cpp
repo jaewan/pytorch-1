@@ -98,7 +98,7 @@ void* alloc_cpu(size_t nbytes, bool hook_alloc) {
   if (nbytes == 0) {
     return nullptr;
   }
-	static thread_local id = 0;
+	static thread_local int id = 0;
 	std::string logname("/home/ubuntu/pytorchLog");
 	std::ofstream log_pytorch;
 	struct timeval time_now{};
@@ -106,7 +106,8 @@ void* alloc_cpu(size_t nbytes, bool hook_alloc) {
 	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
 
 	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time <<" hook_alloc:"<< hook_alloc<< " "<<  __func__ << std::endl;
+	log_pytorch<< msecs_time <<"["<<  __func__ << "] "<<"hook_alloc:"<< hook_alloc<< " size:"<< nbytes<< std::endl;
+	log_pytorch.flush();
 	log_pytorch.close();
   // We might have clowny upstream code that tries to alloc a negative number
   // of bytes. Let's catch it early.

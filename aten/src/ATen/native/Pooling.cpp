@@ -135,6 +135,35 @@ Tensor max_pool2d(
   return std::get<0>(output_and_indices);
 }
 
+Tensor max_pool2d_hook(
+    const Tensor& self,
+    IntArrayRef kernel_size,
+    IntArrayRef stride,
+    IntArrayRef padding,
+    IntArrayRef dilation,
+    bool ceil_mode,
+    bool hook_alloc) {
+  if (self.is_quantized()) {
+    return at::quantized_max_pool2d(self, kernel_size, stride, padding,
+                                    dilation, ceil_mode);
+  }
+  if (self.is_mkldnn()) {
+    return at::mkldnn_max_pool2d(
+        self, kernel_size, stride, padding, dilation, ceil_mode);
+  }
+
+#if defined(C10_MOBILE)
+  if(xnnpack::use_max_pool2d(self, kernel_size, padding, stride,
+                             dilation, ceil_mode)) {
+    return xnnpack::max_pool2d(
+        self, kernel_size, padding, stride, dilation, ceil_mode);
+  }
+#endif
+  auto output_and_indices = at::max_pool2d_hook_with_indices(
+      self, kernel_size, stride, padding, dilation, ceil_mode, hook_alloc);
+  return std::get<0>(output_and_indices);
+}
+
 Tensor max_pool3d(
     const Tensor& self,
     IntArrayRef kernel_size,

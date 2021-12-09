@@ -28,6 +28,10 @@
 #include <cfloat>
 #include <type_traits>
 
+#include <fstream>
+#include <iostream>
+#include <sys/time.h>
+
 namespace at {
 namespace native {
 
@@ -1154,6 +1158,15 @@ TORCH_IMPL_FUNC(mean_out)
  bool keepdim,
  c10::optional<ScalarType> opt_dtype,
  const Tensor& result) {
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time << "mean out "<<  __func__ << std::endl;
+	log_pytorch.flush();
   ScalarType dtype = result.scalar_type();
   // TODO: the TensorIterator reduction implementation of mean
   // (mean_kernel_impl()) is unvectorized and leads to very poor performance
@@ -1180,18 +1193,51 @@ TORCH_IMPL_FUNC(mean_out)
       mean_stub(iter.device_type(), iter);
     }
   }
+	log_pytorch<< msecs_time << "mean out end "<<  __func__ << std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
 }
 
 Tensor mean(const Tensor &self, optional<ScalarType> dtype) {
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time << "1 "<<  __func__ << std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
   return at::mean(self, IntArrayRef{}, false, dtype);
 }
 
 Tensor mean(const Tensor& self, DimnameList dim, bool keepdim, optional<ScalarType> dtype) {
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time << "2 "<<  __func__ << std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
   return at::mean(self, dimnames_to_positions(self, dim), keepdim, dtype);
 }
 
 Tensor& mean_out(const Tensor& self, DimnameList dim,
                  bool keepdim, c10::optional<ScalarType> opt_dtype, Tensor& result) {
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time << "mean_out "<<  __func__ << std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
   return at::mean_out(result, self, dimnames_to_positions(self, dim), keepdim, opt_dtype);
 }
 

@@ -4,6 +4,10 @@
 #include <ATen/native/xnnpack/Engine.h>
 #include <c10/util/irange.h>
 
+#include <fstream>
+#include <iostream>
+#include <sys/time.h>
+
 
 namespace at {
 namespace native {
@@ -33,12 +37,26 @@ namespace {
     int64_t output_height = output_size[0];
     int64_t output_width = output_size[1];
 
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time << __func__ << std::endl;
+	log_pytorch.flush();
     if (ndim == 3) {
+	log_pytorch<< msecs_time << "pool2d resize 1" << std::endl;
+	log_pytorch.flush();
       output.resize_({channels, output_height, output_width});
     } else {
+	log_pytorch<< msecs_time << "pool2d resize 1" << std::endl;
+	log_pytorch.flush();
       int64_t nbatch = input.size(0);
       output.resize_({nbatch, channels, output_height, output_width}, input.suggest_memory_format());
     }
+	log_pytorch.close();
 
     if (output.numel() == 0) {
       return;
@@ -89,7 +107,17 @@ namespace {
     at::Tensor const& input,
     IntArrayRef output_size)
   {
-    auto output = at::empty({0}, input.options());
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time <<  __func__ << std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
+    auto output = at::empty({0}, true, input.options());
     adaptive_avg_pool2d_out_cpu_template(
       output, input, output_size);
     return output;
@@ -98,7 +126,19 @@ namespace {
   Tensor adaptive_avg_pool2d(at::Tensor const& input, IntArrayRef output_size) {
     TORCH_CHECK(output_size.size() == 2, "adaptive_avg_pool2d: output_size must be 2");
 
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time << __func__ << std::endl;
+	log_pytorch.flush();
     if (input.is_mkldnn()) {
+	log_pytorch<< msecs_time << "pool2d mkl 1" << std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
       return at::mkldnn_adaptive_avg_pool2d(input, output_size);
     }
 
@@ -107,10 +147,16 @@ namespace {
       // dimensions, which can be done more efficiently
       #if defined(C10_MOBILE) && defined(USE_XNNPACK)
       if (xnnpack::use_global_average_pool(input)) {
+	log_pytorch<< msecs_time << "pool2d xnnpack 2" << std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
         return xnnpack::global_average_pool(input);
       }
       #endif
 
+	log_pytorch<< msecs_time << "pool2d input.mean 3" << std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
       Tensor out = input.mean({-1, -2}, /* keepdim = */ true);
       if (input.suggest_memory_format() == at::MemoryFormat::ChannelsLast) {
         // assert ndim == 4, since ndim = 3 doesn't give channels_last
