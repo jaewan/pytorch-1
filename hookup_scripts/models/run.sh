@@ -2,5 +2,5 @@
 
 ./build.sh
 rm ~/pytorchLog
-python a.py
+PYTHON_JIT=0  python a.py
 vi ~/pytorchLog
