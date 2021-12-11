@@ -2,6 +2,15 @@
 #include <c10/core/DeviceType.h>
 #include <c10/mobile/CPUCachingAllocator.h>
 #include <c10/mobile/CPUProfilingAllocator.h>
+#include <c10/util/irange.h>
+
+#include <unordered_map>
+#include <fstream>
+#include <errno.h>
+#include <sys/mman.h>
+
+//if allocated in PMEM true, else false
+static thread_local std::unordered_map<void *, std::pair<bool, std::size_t>> memoryMap;
 
 // TODO: rename flags to C10
 C10_DEFINE_bool(
@@ -30,12 +39,15 @@ void memset_junk(void* data, size_t num) {
   int32_t int64_count = num / sizeof(kJunkPattern64);
   int32_t remaining_bytes = num % sizeof(kJunkPattern64);
   int64_t* data_i64 = reinterpret_cast<int64_t*>(data);
-  for (int i = 0; i < int64_count; i++) {
+  for (const auto i : c10::irange(int64_count)) {
     data_i64[i] = kJunkPattern64;
   }
   if (remaining_bytes > 0) {
     memcpy(data_i64 + int64_count, &kJunkPattern64, remaining_bytes);
   }
+}
+static inline bool allocate_pmem(unsigned int id){
+  return true;
 }
 
 void* alloc_cpu(size_t nbytes) {
@@ -50,23 +62,47 @@ void* alloc_cpu(size_t nbytes) {
       nbytes);
 
   // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+  static thread_local unsigned int id = 0;
   void* data;
 #ifdef __ANDROID__
   data = memalign(gAlignment, nbytes);
 #elif defined(_MSC_VER)
   data = _aligned_malloc(nbytes, gAlignment);
 #else
-  int err = posix_memalign(&data, gAlignment, nbytes);
-  if (err != 0) {
-    CAFFE_THROW(
-        "DefaultCPUAllocator: can't allocate memory: you tried to allocate ",
-        nbytes,
-        " bytes. Error code ",
-        err,
-        " (",
-        strerror(err),
-        ")");
+	std::string logname("/home/ubuntu/pytorch-alloc-hookup/hookup_scripts/models/pytorchLog");
+	std::ofstream log_pytorch;
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< "["<<  __func__ << "] "<< " size:"<< nbytes<< std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
+
+  data = mmap(NULL, nbytes, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_SHARED, -1, (off_t)0);
+  if(allocate_pmem(id)){
+    memoryMap.emplace(data,std::make_pair(true, nbytes));
+    if (data == MAP_FAILED) {
+      CAFFE_THROW(
+          "DefaultCPUAllocator: can't allocate memory: you tried to allocate ",
+          nbytes,
+          " bytes. Error code ",
+          errno,
+          " (",
+          strerror(errno),
+          ")");
+    }
+  }else{
+    int err = posix_memalign(&data, gAlignment, nbytes);
+    if (err != 0) {
+      CAFFE_THROW(
+          "DefaultCPUAllocator: can't allocate memory: you tried to allocate ",
+          nbytes,
+          " bytes. Error code ",
+          err,
+          " (",
+          strerror(err),
+          ")");
+    }
   }
+  //std::size_t address = reinterpret_cast<std::size_t>(data);
 #endif
 
   CAFFE_ENFORCE(
@@ -87,16 +123,34 @@ void* alloc_cpu(size_t nbytes) {
     memset_junk(data, nbytes);
   }
 
+  id++;
   return data;
 }
 
 void free_cpu(void* data) {
+	std::string logname("/home/ubuntu/pytorch-alloc-hookup/hookup_scripts/models/pytorchLog");
+	std::ofstream log_pytorch;
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< "["<<  __func__ << "] ";
+	log_pytorch.flush();
 #ifdef _MSC_VER
+	log_pytorch<< "_aligned_free() " << std::endl;
+	log_pytorch.flush();
   _aligned_free(data);
 #else
   // NOLINTNEXTLINE(cppcoreguidelines-no-malloc)
-  free(data);
+	log_pytorch<< "free() " << std::endl;
+	log_pytorch.flush();
+  auto itr = memoryMap.find(data);
+  if(itr->second->first){
+    munmap(data, memoryMap.find(data)->second->second);
+  }else{
+    free(data);
+  }
+  memoryMap.erase(data);
+  //free(data);
 #endif
+	log_pytorch.close();
 }
 
 struct C10_API DefaultCPUAllocator final : at::Allocator {
@@ -161,11 +215,22 @@ class DefaultMobileCPUAllocator final : public at::Allocator {
     // profiledCPUMemoryReporter().Delete(pointer);
     auto allocator_ptr = GetThreadLocalCachingAllocator();
     auto profiling_allocator_ptr = GetThreadLocalProfilingAllocator();
+	std::string logname("/home/ubuntu/pytorch-alloc-hookup/hookup_scripts/models/pytorchLog");
+	std::ofstream log_pytorch;
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< "["<<  __func__ << "] ";
+	log_pytorch.flush();
     if (allocator_ptr != nullptr) {
+	log_pytorch<< "allocator_prt->free() "<< std::endl;
+	log_pytorch.flush();
       allocator_ptr->free(pointer);
     } else if (profiling_allocator_ptr != nullptr) {
+	log_pytorch<< "profiling_allocator->free() " << std::endl;
+	log_pytorch.flush();
       profiling_allocator_ptr->free(pointer);
     } else {
+	log_pytorch<< "free_cpu() " << std::endl;
+	log_pytorch.flush();
       c10::free_cpu(pointer);
       // This adds extra cost to freeing memory to the default case when
       // caching allocator is not enabled.
@@ -176,6 +241,7 @@ class DefaultMobileCPUAllocator final : public at::Allocator {
         allocation_planner->record_free(pointer);
       }
     }
+	log_pytorch.close();
   }
 
   DataPtr allocate(const size_t nbytes) const override {
