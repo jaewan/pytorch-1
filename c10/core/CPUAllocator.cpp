@@ -9,6 +9,13 @@
 #include <errno.h>
 #include <sys/mman.h>
 
+#define DEV_PATH "/dev/dax0.0"
+#define LOG_SIZE (1UL<<37)
+/*
+int pmem_fd = open(DEV_PATH, O_RDWR);
+mmap(NULL, LOG_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_POPULATE, pmem_fd, 0);
+*/
+static int pmem_idx;
 //if allocated in PMEM true, else false
 static thread_local std::unordered_map<void *, std::pair<bool, std::size_t>> memoryMap;
 
