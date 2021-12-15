@@ -79,10 +79,12 @@ void* alloc_cpu(size_t nbytes) {
 	std::string logname("/home/ubuntu/pytorch-alloc-hookup/hookup_scripts/models/pytorchLog");
 	std::ofstream log_pytorch;
 	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< "["<<  __func__ << "] "<< " size:"<< nbytes<< std::endl;
+	log_pytorch<< "["<<  __func__ << "] id:"<< id<< " size:"<< nbytes<< std::endl;
 	log_pytorch.flush();
 	log_pytorch.close();
 
+  if(id > 0){
+  }
   data = mmap(NULL, nbytes, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_SHARED, -1, (off_t)0);
   if(allocate_pmem(id)){
     memoryMap.emplace(data,std::make_pair(true, nbytes));
@@ -149,8 +151,8 @@ void free_cpu(void* data) {
 	log_pytorch<< "free() " << std::endl;
 	log_pytorch.flush();
   auto itr = memoryMap.find(data);
-  if(itr->second->first){
-    munmap(data, memoryMap.find(data)->second->second);
+  if(itr->second.first){
+    munmap(data, memoryMap.find(data)->second.second);
   }else{
     free(data);
   }
