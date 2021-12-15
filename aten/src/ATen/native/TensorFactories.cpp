@@ -24,9 +24,6 @@
 #include <cstddef>
 #include <string>
 
-#include <fstream>
-#include <sys/time.h>
-
 namespace at {
 namespace native {
 namespace {
@@ -174,6 +171,11 @@ Tensor polar(const Tensor& abs, const Tensor& angle) {
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ empty ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// This function initializes id in alloc_cpu
+Tensor hook_init(IntArrayRef size, c10::optional<ScalarType> dtype_opt, c10::optional<Layout> layout_opt,
+                 c10::optional<Device> device_opt, c10::optional<bool> pin_memory_opt, c10::optional<c10::MemoryFormat> memory_format_opt){
+  return at::detail::empty_cpu(size, dtype_opt, layout_opt, device_opt, pin_memory_opt, memory_format_opt, true);
+}
 Tensor empty_cpu(IntArrayRef size, c10::optional<ScalarType> dtype_opt, c10::optional<Layout> layout_opt,
                  c10::optional<Device> device_opt, c10::optional<bool> pin_memory_opt, c10::optional<c10::MemoryFormat> memory_format_opt) {
   return at::detail::empty_cpu(size, dtype_opt, layout_opt, device_opt, pin_memory_opt, memory_format_opt, false);
@@ -181,16 +183,6 @@ Tensor empty_cpu(IntArrayRef size, c10::optional<ScalarType> dtype_opt, c10::opt
 
 Tensor empty_cpu(IntArrayRef size, bool hook_alloc, c10::optional<ScalarType> dtype_opt, c10::optional<Layout> layout_opt,
                  c10::optional<Device> device_opt, c10::optional<bool> pin_memory_opt, c10::optional<c10::MemoryFormat> memory_format_opt) {
-	std::string logname("/home/ubuntu/pytorchLog");
-	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time <<" size:"<< size<< " "<<  __func__ << std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
   return at::detail::empty_cpu(size, dtype_opt, layout_opt, device_opt, pin_memory_opt, memory_format_opt, hook_alloc);
 }
 

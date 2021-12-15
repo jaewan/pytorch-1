@@ -4,8 +4,24 @@
 #include <c10/mobile/CPUProfilingAllocator.h>
 
 #include <fstream>
-#include <iostream>
+#include <thread>
 #include <sys/time.h>
+#include <unordered_map>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
+
+#define gettid() syscall(SYS_gettid)
+#define DEV_PATH "/dev/dax0.0"
+#define MAP_SIZE (1UL<<37)
+
+static volatile bool pmem_mapped=false;
+static thread_local void *pmem_addr;
+static thread_local int pmem_idx;
+//if allocated in PMEM true, else false
+static thread_local std::unordered_map<void *, bool> memoryMap;
 
 // TODO: rename flags to C10
 C10_DEFINE_bool(
@@ -42,7 +58,109 @@ void memset_junk(void* data, size_t num) {
   }
 }
 
+inline bool hook(unsigned int id){
+  if(id ==0)
+    return false;
+  //TODO(Jae) fill this part)
+  return false;
+}
+
+void* alloc_cpu(size_t nbytes, bool hook_alloc) {
+  if (nbytes == 0) {
+    return nullptr;
+  }
+  static thread_local unsigned int id = 0;
+  if(id ==0 && hook_alloc==true){
+    id++;
+    if(pmem_mapped==false){
+      pmem_mapped=true;
+      int pmem_fd = open(DEV_PATH, O_RDWR);
+      mmap(NULL, MAP_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_POPULATE, pmem_fd, 0);
+      pmem_addr = mmap(NULL, MAP_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_SHARED, -1, (off_t)0);
+      if (pmem_addr == MAP_FAILED) {
+      CAFFE_THROW(
+          "Cannot map pmem Error code ",
+          errno,
+          " (",
+          strerror(errno),
+          ")");
+      }
+    }
+    long int num_cores = (long int)std::thread::hardware_concurrency();
+    long long map_size_per_thread = MAP_SIZE/num_cores;
+    pmem_idx = gettid()%num_cores ;
+    pmem_idx *= map_size_per_thread;
+  }
+	std::string logname("/home/ubuntu/pytorchLog");
+	std::ofstream log_pytorch;
+	struct timeval time_now{};
+	gettimeofday(&time_now, nullptr);
+	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< msecs_time <<"["<<  __func__ << "] "<<"hook_alloc:"<< hook_alloc<< " size:"<< nbytes<< std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
+  // We might have clowny upstream code that tries to alloc a negative number
+  // of bytes. Let's catch it early.
+  CAFFE_ENFORCE(
+      ((ptrdiff_t)nbytes) >= 0,
+      "alloc_cpu() seems to have been called with negative number: ",
+      nbytes);
+
+  // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+  void* data;
+#ifdef __ANDROID__
+  data = memalign(gAlignment, nbytes);
+#elif defined(_MSC_VER)
+  data = _aligned_malloc(nbytes, gAlignment);
+#else
+  int err;
+  if(hook(id)){
+    data = pmem_addr + pmem_idx;
+    pmem_idx += nbytes;
+    memoryMap.emplace(data, true);
+  }else{
+    err = posix_memalign(&data, gAlignment, nbytes);
+    if (err != 0) {
+      CAFFE_THROW(
+          "DefaultCPUAllocator: can't allocate memory: you tried to allocate ",
+          nbytes,
+          " bytes. Error code ",
+          err,
+          " (",
+          strerror(err),
+          ")");
+    }
+    memoryMap.emplace(data,false);
+  }
+#endif
+
+  CAFFE_ENFORCE(
+      data,
+      "DefaultCPUAllocator: not enough memory: you tried to allocate ",
+      nbytes,
+      " bytes.");
+
+  // move data to a thread's NUMA node
+  NUMAMove(data, nbytes, GetCurrentNUMANode());
+  CHECK(
+      !FLAGS_caffe2_cpu_allocator_do_zero_fill ||
+      !FLAGS_caffe2_cpu_allocator_do_junk_fill)
+      << "Cannot request both zero-fill and junk-fill at the same time";
+  if (FLAGS_caffe2_cpu_allocator_do_zero_fill) {
+    memset(data, 0, nbytes);
+  } else if (FLAGS_caffe2_cpu_allocator_do_junk_fill) {
+    memset_junk(data, nbytes);
+  }
+  if(id >0)
+    id++;
+
+  return data;
+}
+
 void* alloc_cpu(size_t nbytes) {
+  alloc_cpu(nbytes, false);
   if (nbytes == 0) {
     return nullptr;
   }
@@ -94,81 +212,16 @@ void* alloc_cpu(size_t nbytes) {
   return data;
 }
 
-void* alloc_cpu(size_t nbytes, bool hook_alloc) {
-  if (nbytes == 0) {
-    return nullptr;
-  }
-	static thread_local int id = 0;
-	std::string logname("/home/ubuntu/pytorchLog");
-	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time <<"["<<  __func__ << "] "<<"hook_alloc:"<< hook_alloc<< " size:"<< nbytes<< std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
-  // We might have clowny upstream code that tries to alloc a negative number
-  // of bytes. Let's catch it early.
-  CAFFE_ENFORCE(
-      ((ptrdiff_t)nbytes) >= 0,
-      "alloc_cpu() seems to have been called with negative number: ",
-      nbytes);
-
-  // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
-  void* data;
-#ifdef __ANDROID__
-  data = memalign(gAlignment, nbytes);
-#elif defined(_MSC_VER)
-  data = _aligned_malloc(nbytes, gAlignment);
-#else
-  int err;
-  if(hook_alloc){
-    //TODO(Jae) make a custom alloc function here
-    err = posix_memalign(&data, gAlignment, nbytes);
-  }else{
-    err = posix_memalign(&data, gAlignment, nbytes);
-  }
-  if (err != 0) {
-    CAFFE_THROW(
-        "DefaultCPUAllocator: can't allocate memory: you tried to allocate ",
-        nbytes,
-        " bytes. Error code ",
-        err,
-        " (",
-        strerror(err),
-        ")");
-  }
-#endif
-
-  CAFFE_ENFORCE(
-      data,
-      "DefaultCPUAllocator: not enough memory: you tried to allocate ",
-      nbytes,
-      " bytes.");
-
-  // move data to a thread's NUMA node
-  NUMAMove(data, nbytes, GetCurrentNUMANode());
-  CHECK(
-      !FLAGS_caffe2_cpu_allocator_do_zero_fill ||
-      !FLAGS_caffe2_cpu_allocator_do_junk_fill)
-      << "Cannot request both zero-fill and junk-fill at the same time";
-  if (FLAGS_caffe2_cpu_allocator_do_zero_fill) {
-    memset(data, 0, nbytes);
-  } else if (FLAGS_caffe2_cpu_allocator_do_junk_fill) {
-    memset_junk(data, nbytes);
-  }
-  id++;
-
-  return data;
-}
 void free_cpu(void* data) {
 #ifdef _MSC_VER
   _aligned_free(data);
 #else
   // NOLINTNEXTLINE(cppcoreguidelines-no-malloc)
-  free(data);
+  auto itr = memoryMap.find(data);
+  if(!itr->second){
+    free(data);
+  }
+  memoryMap.erase(data);
 #endif
 }
 

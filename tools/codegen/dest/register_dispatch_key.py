@@ -412,12 +412,6 @@ class StructuredRegisterDispatchKey(RegisterDispatchKey):
         return f"""
 void set_output(int64_t output_idx, IntArrayRef sizes, IntArrayRef strides,
                 TensorOptions options, DimnameList names) override {{
-    std::string logname("/home/ubuntu/pytorchLog");
-    std::ofstream log_pytorch;
-    log_pytorch.open(logname, std::ios_base::app);
-    log_pytorch<< "0 set_output generated in a python file"<< std::endl;
-    log_pytorch.flush();
-    log_pytorch.close();
 {textwrap.indent(self.gen_class_set_output_body(k), "    ")}
     if (!names.empty()) {{
       namedinference::propagate_names({maybe_star}outputs_[output_idx], names);
@@ -428,12 +422,6 @@ void set_output(int64_t output_idx, IntArrayRef sizes, IntArrayRef strides,
 }}
 void set_output(int64_t output_idx, IntArrayRef sizes, IntArrayRef strides,
                 TensorOptions options, DimnameList names, bool hook_alloc) {{
-    std::string logname("/home/ubuntu/pytorchLog");
-    std::ofstream log_pytorch;
-    log_pytorch.open(logname, std::ios_base::app);
-    log_pytorch<< "1 set_output generated in a python file hook_alloc is "<< hook_alloc << std::endl;
-    log_pytorch.flush();
-    log_pytorch.close();
 {textwrap.indent(self.gen_class_set_output_hook_alloc_body(k), "    ")}
     if (!names.empty()) {{
       namedinference::propagate_names({maybe_star}outputs_[output_idx], names);

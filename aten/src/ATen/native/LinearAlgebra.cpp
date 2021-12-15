@@ -26,9 +26,6 @@
 #include <numeric>
 #include <string>
 
-#include <fstream>
-#include <sys/time.h>
-
 namespace at {
 namespace meta {
 TORCH_META_FUNC(addmm)(const Tensor& self, const Tensor& mat1, const Tensor& mat2, const Scalar& beta, const Scalar& alpha) {
@@ -1125,16 +1122,6 @@ Tensor outer(const Tensor& self, const Tensor& vec2) {
 
 static void addmm_impl_cpu_(
     Tensor &result, const Tensor &self, Tensor m1, Tensor m2, const Scalar& beta, const Scalar& alpha) {
-	std::string logname("/home/ubuntu/pytorchLog");
-	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time << " addmm_impl_cpu_  "<<  __func__ << std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
   TORCH_INTERNAL_ASSERT(self.dim() == 2 && m1.dim() == 2 && m2.dim() == 2);
   // Array access is faster than .size(n) and .stride(n)
   const auto self_sizes = self.sizes();
@@ -1314,16 +1301,6 @@ Tensor addbmm(const Tensor& self, const Tensor& batch1, const Tensor& batch2, co
 }
 
 TORCH_IMPL_FUNC(addmmhook_out_cpu)(const Tensor& self, const Tensor& mat1, const Tensor& mat2, const Scalar& hook_alloc, const Scalar& beta, const Scalar& alpha, const Tensor &result) {
-	std::string logname("/home/ubuntu/pytorchLog");
-	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time << " addmmhook_out_cpu "<<  __func__ << std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
   auto b_self = expand_size(self, {mat1.sizes()[0], mat2.sizes()[1]}, "addmmhook_out");
   {
     at::NoNamesGuard guard;
@@ -1332,16 +1309,6 @@ TORCH_IMPL_FUNC(addmmhook_out_cpu)(const Tensor& self, const Tensor& mat1, const
 }
 
 TORCH_IMPL_FUNC(addmm_out_cpu)(const Tensor& self, const Tensor& mat1, const Tensor& mat2, const Scalar& beta, const Scalar& alpha, const Tensor &result) {
-	std::string logname("/home/ubuntu/pytorchLog");
-	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time << " addmm_out_cpu "<<  __func__ << std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
   auto b_self = expand_size(self, {mat1.sizes()[0], mat2.sizes()[1]}, "addmm_out");
   {
     at::NoNamesGuard guard;

@@ -13,10 +13,6 @@
 #include <array>
 #include <bitset>
 
-#include <fstream>
-#include <iostream>
-#include <sys/time.h>
-
 namespace at {
 class Tensor;
 class OptionalTensorRef;
@@ -281,16 +277,6 @@ struct TORCH_API TensorIteratorBase : public impl::MetaBase {
 
   const Tensor& output(int arg=0) const {
     AT_ASSERT(arg < num_outputs_);
-	std::string logname("/home/ubuntu/pytorchLog");
-	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time << " TensorIterator.h:280 "<<  __func__ << std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
     return tensor(arg);
   }
 

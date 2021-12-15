@@ -20,10 +20,6 @@
 #include <algorithm>
 #include <cmath>
 
-#include <fstream>
-#include <iostream>
-#include <sys/time.h>
-
 namespace at {
 
 using DimMask = TensorIteratorBase::DimMask;
@@ -1463,16 +1459,6 @@ void TensorIteratorBase::build(TensorIteratorConfig& config) {
 // unconditionally returns a real Tensor (prior to output setting,
 // this function may return an undefined tensor.)
 void TensorIteratorBase::set_output(int64_t output_idx, IntArrayRef sizes, IntArrayRef strides, TensorOptions options, DimnameList names) {
-	std::string logname("/home/ubuntu/pytorchLog");
-	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time << "set_output 2 "<<  __func__ << std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
   auto& op = operands_[output_idx];
   TORCH_INTERNAL_ASSERT_DEBUG_ONLY(output_idx < num_outputs_);
   const auto& t = maybe_get_output(output_idx);
@@ -1540,16 +1526,6 @@ void TensorIteratorBase::set_output(int64_t output_idx, IntArrayRef sizes, IntAr
 // instances, it is invoked directly from various call sites in this file.  No
 // funny business.
 void TensorIterator::set_output(int64_t output_idx, IntArrayRef sizes, IntArrayRef strides, TensorOptions options, DimnameList names) {
-	std::string logname("/home/ubuntu/pytorchLog");
-	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time << "set_output 1 "<<  __func__ << std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
   // NB: intentionally no superclass call
   auto& op = operands_[output_idx];
   TORCH_INTERNAL_ASSERT_DEBUG_ONLY(output_idx < num_outputs_);

@@ -615,16 +615,6 @@ at::Tensor conv2d(
   // See [Note: hacky wrapper removal for optional tensor]
   c10::MaybeOwned<Tensor> bias_maybe_owned = at::borrow_from_optional_tensor(bias_opt);
   const Tensor& bias = *bias_maybe_owned;
-	std::string logname("/home/ubuntu/pytorchLog");
-	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time << "["<<  __func__ << "]: 1st conv2d"<< std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
   return at::convolution(input, weight, bias, stride, padding, dilation,
                          false, {{0, 0}}, groups);
 }
@@ -737,16 +727,6 @@ at::Tensor conv2d(
     const Tensor& input, const Tensor& weight, const c10::optional<Tensor>& bias,
     IntArrayRef stride, c10::string_view padding, IntArrayRef dilation,
     int64_t groups) {
-	std::string logname("/home/ubuntu/pytorchLog");
-	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time << "["<<  __func__ << "]: 2nd conv2d"<< std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
   return at::_convolution_mode(
       input, weight, bias, stride, std::move(padding), dilation, groups);
 }
