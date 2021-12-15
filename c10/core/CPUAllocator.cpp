@@ -5,7 +5,6 @@
 
 #include <fstream>
 #include <thread>
-#include <sys/time.h>
 #include <unordered_map>
 #include <errno.h>
 #include <fcntl.h>
@@ -22,6 +21,7 @@ static thread_local void *pmem_addr;
 static thread_local int pmem_idx;
 //if allocated in PMEM true, else false
 static thread_local std::unordered_map<void *, bool> memoryMap;
+bool non_hook = true
 
 // TODO: rename flags to C10
 C10_DEFINE_bool(
@@ -59,7 +59,7 @@ void memset_junk(void* data, size_t num) {
 }
 
 inline bool hook(unsigned int id){
-  if(id ==0)
+  if(id ==0 || !non_hook)
     return false;
   //TODO(Jae) fill this part)
   return false;
@@ -90,15 +90,17 @@ void* alloc_cpu(size_t nbytes, bool hook_alloc) {
     long long map_size_per_thread = MAP_SIZE/num_cores;
     pmem_idx = gettid()%num_cores ;
     pmem_idx *= map_size_per_thread;
+  }else if(nbytes==2 && hook_alloc=true){
+    id = 1;
+    long int num_cores = (long int)std::thread::hardware_concurrency();
+    long long map_size_per_thread = MAP_SIZE/num_cores;
+    pmem_idx = gettid()%num_cores ;
+    pmem_idx *= map_size_per_thread;
   }
-	std::string logname("/home/ubuntu/pytorchLog");
+	std::string logname("/home/ubuntu/pytorch-alloc-hookup/hookup_scripts/models/pytorchLog");
 	std::ofstream log_pytorch;
-	struct timeval time_now{};
-	gettimeofday(&time_now, nullptr);
-	time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
 	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< msecs_time <<"["<<  __func__ << "] "<<"hook_alloc:"<< hook_alloc<< " size:"<< nbytes<< std::endl;
+	log_pytorch<< "["<<  __func__ << "] id:"<<id<<" hook_alloc:"<< hook_alloc<< " size:"<< nbytes<< std::endl;
 	log_pytorch.flush();
 	log_pytorch.close();
   // We might have clowny upstream code that tries to alloc a negative number
