@@ -1180,9 +1180,6 @@ TORCH_IMPL_FUNC(mean_out)
       mean_stub(iter.device_type(), iter);
     }
   }
-	log_pytorch<< msecs_time << "mean out end "<<  __func__ << std::endl;
-	log_pytorch.flush();
-	log_pytorch.close();
 }
 
 Tensor mean(const Tensor &self, optional<ScalarType> dtype) {
