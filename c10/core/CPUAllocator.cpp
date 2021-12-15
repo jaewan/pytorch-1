@@ -12,6 +12,8 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
+#include <stdlib.h>
+
 #define gettid() syscall(SYS_gettid)
 #define DEV_PATH "/dev/dax0.0"
 #define MAP_SIZE (1UL<<37)
@@ -21,7 +23,7 @@ static thread_local void *pmem_addr;
 static thread_local int pmem_idx;
 //if allocated in PMEM true, else false
 static thread_local std::unordered_map<void *, bool> memoryMap;
-bool non_hook = true
+bool non_hook = true;
 
 // TODO: rename flags to C10
 C10_DEFINE_bool(
@@ -59,10 +61,10 @@ void memset_junk(void* data, size_t num) {
 }
 
 inline bool hook(unsigned int id){
-  if(id ==0 || !non_hook)
+  if(id ==0 || non_hook)
     return false;
   //TODO(Jae) fill this part)
-  return false;
+  return true;
 }
 
 void* alloc_cpu(size_t nbytes, bool hook_alloc) {
@@ -70,40 +72,57 @@ void* alloc_cpu(size_t nbytes, bool hook_alloc) {
     return nullptr;
   }
   static thread_local unsigned int id = 0;
-  if(id ==0 && hook_alloc==true){
+
+  if(id ==0 && nbytes == 4 && hook_alloc==true){
     id++;
+    non_hook = false;
     if(pmem_mapped==false){
       pmem_mapped=true;
       int pmem_fd = open(DEV_PATH, O_RDWR);
-      mmap(NULL, MAP_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_POPULATE, pmem_fd, 0);
-      pmem_addr = mmap(NULL, MAP_SIZE, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_SHARED, -1, (off_t)0);
+      if(pmem_fd <0){
+        CAFFE_THROW(
+          "Cannot open pmem Error Code ",
+          errno,
+          " (",
+          strerror(errno),
+          ")");
+      }
+      pmem_addr = mmap(NULL, MAP_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_POPULATE, pmem_fd, 0);
       if (pmem_addr == MAP_FAILED) {
-      CAFFE_THROW(
+        CAFFE_THROW(
           "Cannot map pmem Error code ",
           errno,
           " (",
           strerror(errno),
           ")");
       }
+      close(pmem_fd);
+	std::string logname("/home/ubuntu/pytorch-alloc-hookup/hookup_scripts/models/pytorchLog");
+	std::ofstream log_pytorch;
+	log_pytorch.open(logname, std::ios_base::app);
+	log_pytorch<< "["<<  __func__ << "] id:"<<id<<" alloc_cpu is initiazlied" << std::endl;
+	log_pytorch.flush();
+	log_pytorch.close();
+    }else{
+        CAFFE_THROW(
+          "Alloc_cpu is initialization called but pmem already mapped ",
+          id);
     }
-    long int num_cores = (long int)std::thread::hardware_concurrency();
-    long long map_size_per_thread = MAP_SIZE/num_cores;
-    pmem_idx = gettid()%num_cores ;
-    pmem_idx *= map_size_per_thread;
-  }else if(nbytes==2 && hook_alloc=true){
+    return nullptr;
+  }else if(nbytes==8 && hook_alloc==true){
     id = 1;
     long int num_cores = (long int)std::thread::hardware_concurrency();
     long long map_size_per_thread = MAP_SIZE/num_cores;
     pmem_idx = gettid()%num_cores ;
     pmem_idx *= map_size_per_thread;
-  }
 	std::string logname("/home/ubuntu/pytorch-alloc-hookup/hookup_scripts/models/pytorchLog");
 	std::ofstream log_pytorch;
 	log_pytorch.open(logname, std::ios_base::app);
-	log_pytorch<< "["<<  __func__ << "] id:"<<id<<" hook_alloc:"<< hook_alloc<< " size:"<< nbytes<< std::endl;
+	log_pytorch<< "["<<  __func__ << "] id:"<<id<<" alloc_cpu per_thread initialization called tid:"<<gettid() << std::endl;
 	log_pytorch.flush();
 	log_pytorch.close();
-  // We might have clowny upstream code that tries to alloc a negative number
+    return nullptr;
+  }  // We might have clowny upstream code that tries to alloc a negative number
   // of bytes. Let's catch it early.
   CAFFE_ENFORCE(
       ((ptrdiff_t)nbytes) >= 0,
@@ -119,7 +138,8 @@ void* alloc_cpu(size_t nbytes, bool hook_alloc) {
 #else
   int err;
   if(hook(id)){
-    data = pmem_addr + pmem_idx;
+    //data = pmem_addr + pmem_idx;
+    data = pmem_addr + (rand()%MAP_SIZE);
     pmem_idx += nbytes;
     memoryMap.emplace(data, true);
   }else{
